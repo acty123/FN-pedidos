@@ -102,3 +102,8 @@ FN-pedidos/
         ├── guards/             # Guardias de navegación
         └── interceptors/       # Interceptores HTTP
 ```
+
+## Diagrama de Arquitectura
+
+![Diagrama de Arquitectura](Diagrama.png)
+
