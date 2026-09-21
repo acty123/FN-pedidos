@@ -1,6 +1,7 @@
-version: '3.8'
 
 services:
+
+  # ── 1. Base de datos PostgreSQL ─────────────────────────────
   postgres-db:
     image: postgres:16-alpine
     container_name: fn_pedidos_postgres
@@ -12,7 +13,46 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: always
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fn_pedidos_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── 2. Backend Spring Boot ──────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fn_pedidos_backend
+    environment:
+      # Sobreescribe la URL del application.properties para usar
+      # el hostname interno del contenedor en lugar de localhost
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/fn_pedidos_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgrespassword
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SQL_INIT_MODE: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── 3. Frontend Angular (Nginx) ─────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fn_pedidos_frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
 
 volumes:
   postgres_data:

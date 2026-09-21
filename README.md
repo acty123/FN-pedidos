@@ -1,78 +1,110 @@
 # FN-Pedidos - Aplicación Full Stack (Spring Boot + Angular + PostgreSQL)
 
-Sistema de gestión de pedidos desarrollado con **Spring Boot (Java 17 / Gradle)** en el Backend, **Angular 19+** en el Frontend y **PostgreSQL** desplegado mediante **Docker**.
+Sistema de gestión de pedidos desarrollado con **Spring Boot (Java 17 / Gradle)** en el Backend, **Angular 21+** en el Frontend y **PostgreSQL** como base de datos.
 
 ---
 
 ## 🛠️ Prerrequisitos
 
-Asegúrate de contar con los siguientes componentes instalados en tu sistema:
-
-- **Docker** y **Docker Compose**
-- **Java JDK 17** (o superior)
-- **Node.js** (v18+) y **npm** (o Angular CLI)
+| Modo de ejecución | Requisitos |
+|---|---|
+| **Docker Compose** *(recomendado)* | Docker Desktop (v24+) |
+| **Manual / Desarrollo** | Java JDK 17, Node.js 22+, npm, Docker |
 
 ---
 
-## 🚀 Pasos para Ejecutar la Aplicación en Localhost
+## 🐳 Ejecución con Docker Compose *(recomendado)*
 
-### 1. Iniciar la Base de Datos PostgreSQL (Docker)
-
-Abre una terminal en la raíz del proyecto ([`e:\dev\springboot\FN-pedidos`](file:///e:/dev/springboot/FN-pedidos)) y ejecuta:
+Con un solo comando levanta los **3 servicios** del stack completo:
+`PostgreSQL` → `Spring Boot Backend` → `Angular (Nginx)`.
 
 ```bash
-docker compose up -d
+# En la raíz del proyecto
+docker compose up --build -d
 ```
 
-> **Verificación:** Puedes confirmar que el contenedor está corriendo ejecutando `docker ps`. La base de datos estará disponible en `localhost:5432` con la base de datos `fn_pedidos_db`.
+La primera vez descarga las imágenes base y compila el código (~3-5 min).
+Las siguientes ejecuciones reutilizan la caché y son mucho más rápidas.
+
+### Verificar que todo está corriendo
+
+```bash
+docker compose ps
+```
+
+Deberías ver los 3 contenedores en estado `running` / `healthy`:
+
+```
+fn_pedidos_postgres   running (healthy)
+fn_pedidos_backend    running
+fn_pedidos_frontend   running
+```
+
+### URLs disponibles
+
+| Servicio | URL |
+|---|---|
+| 🌐 **Frontend Angular** | http://localhost:4200 |
+| ⚙️ **API REST Backend** | http://localhost:8080/api/pedidos |
+| ❤️ **Health Check** | http://localhost:8080/api/health |
+| 🗃️ **PostgreSQL** | localhost:5432 · db: `fn_pedidos_db` |
+
+### Comandos útiles
+
+```bash
+# Ver logs en tiempo real de todos los servicios
+docker compose logs -f
+
+# Ver logs de un servicio específico
+docker compose logs -f backend
+
+# Detener y eliminar los contenedores (conserva los datos de la BD)
+docker compose down
+
+# Detener y eliminar todo, incluidos los volúmenes (borra la BD)
+docker compose down -v
+
+# Reconstruir una imagen específica
+docker compose build backend
+docker compose build frontend
+```
 
 ---
 
-### 2. Iniciar el Backend (Spring Boot con Gradle)
+## 🔧 Ejecución Manual *(desarrollo local)*
 
-Navega a la carpeta [`backend`](file:///e:/dev/springboot/FN-pedidos/backend) y ejecuta el servidor de desarrollo:
+Útil para desarrollar con hot-reload en el frontend o depurar el backend.
 
-#### En Windows (PowerShell / CMD):
-```cmd
+### 1. Iniciar la Base de Datos PostgreSQL
+
+```bash
+# Solo levanta el servicio de postgres
+docker compose up postgres-db -d
+```
+
+### 2. Iniciar el Backend (Spring Boot)
+
+```bash
 cd backend
+
+# Windows
 gradlew.bat bootRun
-```
 
-#### En Linux / macOS:
-```bash
-cd backend
+# Linux / macOS
 ./gradlew bootRun
 ```
 
-> **Backend listo:** El servidor iniciará en `http://localhost:8080`.
-> Puedes probar la salud del servicio ingresando a: `http://localhost:8080/api/health`
-
----
+> Backend disponible en `http://localhost:8080`
 
 ### 3. Iniciar el Frontend (Angular)
 
-En otra ventana de terminal, navega a la carpeta [`frontend`](file:///e:/dev/springboot/FN-pedidos/frontend) y ejecuta:
-
 ```bash
 cd frontend
+npm install
 npm start
 ```
 
-*(Alternativamente puedes usar `npx ng serve`)*
-
-> **Frontend listo:** La aplicación web estará disponible en tu navegador en:
-> **`http://localhost:4200`**
-
----
-
-## 📌 Resumen de Rutas y Servicios
-
-| Componente | Dirección URL | Descripción |
-| :--- | :--- | :--- |
-| **Frontend Angular** | `http://localhost:4200` | Interfaz de usuario web |
-| **API Backend REST** | `http://localhost:8080/api/pedidos` | Endpoints REST de la gestión de pedidos |
-| **Health Check API** | `http://localhost:8080/api/health` | Estado del servicio backend |
-| **Base de Datos** | `localhost:5432` | PostgreSQL (usuario: `postgres`, db: `fn_pedidos_db`) |
+> Frontend disponible en `http://localhost:4200`
 
 ---
 
@@ -80,30 +112,34 @@ npm start
 
 ```
 FN-pedidos/
-├── docker-compose.yml          # Despliegue del contenedor PostgreSQL
+├── docker-compose.yml          # Stack completo: PostgreSQL + Backend + Frontend
 ├── README.md                   # Guía de ejecución del proyecto
 │
 ├── backend/                    # Proyecto Java Spring Boot (Gradle)
+│   ├── Dockerfile              # Multi-stage: Gradle build → JRE 17 Alpine
 │   ├── build.gradle            # Dependencias (Spring Data JPA, PostgreSQL, Lombok, Web)
 │   └── src/main/java/com/pedidos/backend/
 │       ├── domain/enums/       # EstadoPedido, TipoItem
-│       ├── entity/             # PedidoEntity, ItemPedidoEntity (Persistencia JPA)
+│       ├── entity/             # PedidoEntity, ItemPedidoEntity (JPA + índices)
 │       ├── dto/                # Request y Response DTOs
-│       ├── repository/         # PedidoRepository (Spring Data JPA)
-│       ├── service/            # PedidoService y PedidoServiceImpl (Lógica de negocio)
+│       ├── repository/         # PedidoRepository (JPA + Stored Procedure)
+│       ├── service/            # PedidoService (lógica de negocio y validaciones)
 │       └── controller/         # PedidoController (/api/pedidos)
 │
-└── frontend/                   # Proyecto Angular (Standalone)
+└── frontend/                   # Proyecto Angular (Standalone Components)
+    ├── Dockerfile              # Multi-stage: Node 22 build → Nginx Alpine
+    ├── nginx.conf              # SPA fallback + proxy reverso /api/ → backend
     └── src/app/
         ├── models/             # Interfaces TypeScript (Pedido, ItemPedido, etc.)
-        ├── services/           # PedidoService (Integración HTTP)
+        ├── services/           # PedidoService (integración HTTP + fallback demo)
         ├── components/         # Componentes UI reutilizables
-        ├── pages/              # Vistas principales
+        ├── pages/              # Vistas principales (landing/dashboard)
         ├── guards/             # Guardias de navegación
         └── interceptors/       # Interceptores HTTP
 ```
 
+---
+
 ## Diagrama de Arquitectura
 
 ![Diagrama de Arquitectura](Diagrama.png)
-

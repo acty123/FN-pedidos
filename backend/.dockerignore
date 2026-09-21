@@ -1,0 +1,14 @@
+﻿# Carpetas generadas por el build
+build/
+.gradle/
+
+# IDE y configuración local de Windows
+.idea/
+*.iml
+out/
+gradle.properties
+
+# Git
+.git/
+.gitignore
+.gitattributes
